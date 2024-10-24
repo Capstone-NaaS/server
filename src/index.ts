@@ -11,6 +11,7 @@ import {
   UpdateCommand,
   DeleteCommand,
 } from "@aws-sdk/lib-dynamodb";
+import axios from "axios";
 
 // Initialize dotenv to read and parse `.env` file contents into `process.env`.
 dotenv.config();
@@ -32,23 +33,6 @@ app.get("/", (_req: Request, res: Response) => {
   res.send("Express + TypeScript Server");
 });
 
-// use client table to store ids
-let client: Response;
-
-app.get("/sse", (_req: Request, res: Response) => {
-  console.log("sse visited");
-  client = res;
-  client.writeHead(200, {
-    Connection: "keep-alive",
-    "Cache-Control": "no-cache",
-    "Content-Type": "text/event-stream",
-  });
-
-  client.on("close", () => {
-    client.end();
-  });
-});
-
 interface NotificationRequestBody {
   id: string;
   message: string;
@@ -56,10 +40,17 @@ interface NotificationRequestBody {
 
 app.post(
   "/notifications",
-  (req: Request<{}, {}, NotificationRequestBody>, res: Response) => {
-    let { id, message } = req.body;
-    const chunk = JSON.stringify({ id, message });
-    client.write(`data: ${chunk}\n\n`);
+  async (req: Request<{}, {}, NotificationRequestBody>, res: Response) => {
+    const { id, message } = req.body;
+
+    const response = await axios.post(
+      "https://qpisselswg.execute-api.us-west-1.amazonaws.com/dev/websocketBroadcast",
+      {
+        id,
+        message,
+      }
+    );
+
     res.status(200).send("success");
   }
 );
